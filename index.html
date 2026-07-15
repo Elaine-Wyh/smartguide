@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>交通标志识别导航</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#333}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:14px 16px;text-align:center;position:sticky;top:0;z-index:10}
+.header h1{font-size:1.2em}
+#modelStatus{font-size:0.7em;margin-top:4px;opacity:0.85}
+.container{max-width:700px;margin:0 auto;padding:10px}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.card h3{font-size:0.95em;margin-bottom:8px;color:#1a1a2e}
+.upload-zone{border:2px dashed #d9d9d9;border-radius:10px;min-height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;overflow:hidden;position:relative}
+.upload-zone img,.upload-zone video{max-width:100%;max-height:260px;border-radius:6px}
+.upload-zone .hint{color:#999;font-size:0.85em;text-align:center;padding:20px}
+.upload-zone .hint .icon{font-size:2.5em;display:block;margin-bottom:6px}
+.btn-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.btn{padding:9px 16px;border:none;border-radius:7px;font-size:0.9em;font-weight:600;cursor:pointer;transition:0.15s}
+.btn-primary{background:#1677ff;color:#fff}
+.btn-primary:active{background:#0958d9}
+.btn-outline{background:#fff;color:#1677ff;border:1.5px solid #1677ff}
+.btn-outline:active{background:#e6f0ff}
+.btn:disabled{opacity:0.4;pointer-events:none}
+.result .emoji{font-size:2.5em;text-align:center}
+.result .name{font-size:1.4em;font-weight:bold;text-align:center;margin:6px 0}
+.result .meta{text-align:center;font-size:0.8em;color:#888;margin-bottom:8px}
+.bar{background:#eee;border-radius:6px;height:20px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width 0.4s}
+.bar-text{text-align:center;font-size:0.8em;margin-top:2px}
+.nav-tip{background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:10px;margin-top:10px}
+.nav-tip .label{font-size:0.75em;color:#ad6800;font-weight:bold}
+.nav-tip .text{font-size:1em;margin-top:3px}
+.route-box{background:#e6f7ff;border:1px solid #91d5ff;border-radius:8px;padding:10px;margin-top:10px}
+.route-box .head{font-weight:bold;color:#1677ff;font-size:1em}
+.route-box .steps{font-size:0.85em;color:#555;margin-top:6px;line-height:1.7}
+.hidden{display:none!important}
+input[type=text]{width:100%;padding:9px;border:1px solid #d9d9d9;border-radius:7px;font-size:0.9em;margin-bottom:6px}
+.loading{text-align:center;padding:16px;color:#999}
+.spinner{width:28px;height:28px;border:3px solid #eee;border-top-color:#1677ff;border-radius:50%;animation:spin 0.7s linear infinite;margin:8px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+footer{text-align:center;padding:16px;color:#bbb;font-size:0.7em}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚗 交通标志识别 + 导航</h1>
+  <div id="modelStatus">⏳ 加载模型...</div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <h3>📷 上传交通标志照片</h3>
+    <div class="upload-zone" id="uploadZone">
+      <div class="hint" id="uploadHint"><span class="icon">📸</span>点击此处拍照 / 选择图片</div>
+      <video id="camVideo" autoplay playsinline muted class="hidden"></video>
+      <img id="preview" class="hidden" alt="">
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden">
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btnTake">📷 拍照</button>
+      <button class="btn btn-outline" id="btnPick">🖼 相册</button>
+      <button class="btn btn-primary" id="btnGo" disabled>🔍 开始识别</button>
+    </div>
+  </div>
+
+  <div class="card result hidden" id="resultCard">
+    <h3>🏷️ 识别结果</h3>
+    <div id="resultInner"></div>
+  </div>
+
+  <div class="card">
+    <h3>🗺️ 路线导航</h3>
+    <input type="text" id="fromInput" placeholder="起点，如：杭州东站">
+    <input type="text" id="toInput" placeholder="目的地，如：西湖">
+    <button class="btn btn-primary" id="btnNav" style="width:100%">🚀 规划路线</button>
+    <div id="navResult"></div>
+  </div>
+
+</div>
+
+<footer>PreActResNet + SE注意力 · 浏览器本地推理 · 数据不出设备</footer>
+
+<script>
+var KEY = 'aecf4844678fa2a6c8c424b583ce806d';
+var URL = 'model.onnx';
+var MEAN=[0.3337,0.3064,0.3171], STD=[0.2672,0.2564,0.2629];
+
+var SIGNS={0:['限速20km/h','前方限速20，请减速','🚗'],1:['限速30km/h','前方限速30，请减速','🚗'],2:['限速50km/h','前方限速50','🚗'],3:['限速60km/h','前方限速60','🚗'],4:['限速70km/h','前方限速70','🚗'],5:['限速80km/h','前方限速80','🚗'],6:['解除80限速','限速80已解除','ℹ'],7:['限速100km/h','前方限速100','🚗'],8:['限速120km/h','前方限速120','🚗'],9:['禁止超车','禁止超车，请勿变道','🚫'],10:['大车禁超','禁止大型车超车','🚫'],11:['路口优先','路口有优先通行权','ℹ'],12:['优先道路','当前为优先道路','ℹ'],13:['减速让行','请减速让行','⚠'],14:['停车让行','请停车让行！','⚠'],15:['禁止通行','禁止通行，请绕行！','🚫'],16:['大车禁行','禁止大车通行','🚫'],17:['禁止驶入','禁止驶入，请绕行！','🚫'],18:['注意危险','危险路段，谨慎驾驶','⚠'],19:['左急弯','左急弯，请减速','⚠'],20:['右急弯','右急弯，请减速','⚠'],21:['连续弯道','连续弯道，请减速','⚠'],22:['路面不平','路面不平，请减速','⚠'],23:['路面湿滑','路面湿滑，请减速','⚠'],24:['右侧变窄','道路右侧变窄','⚠'],25:['道路施工','道路施工，请减速','⚠'],26:['信号灯','前方信号灯','⚠'],27:['注意行人','注意行人','⚠'],28:['注意儿童','学校区域，请减速','⚠'],29:['注意自行车','注意自行车','⚠'],30:['注意冰雪','冰雪路面，避免急刹','⚠'],31:['野生动物','注意野生动物','⚠'],32:['解除所有限制','所有限制已解除','ℹ'],33:['前方右转','路口请右转','⬆'],34:['前方左转','路口请左转','⬆'],35:['直行','路口请直行','⬆'],36:['直行或右转','可直行或右转','⬆'],37:['直行或左转','可直行或左转','⬆'],38:['靠右行驶','请靠右行驶','⬆'],39:['靠左行驶','请靠左行驶','⬆'],40:['环岛','请绕环岛行驶','⬆'],41:['解除禁超','禁止超车已解除','ℹ'],42:['大车禁超解除','大车禁止超车已解除','ℹ']};
+
+var session=null, currentImg=null, camStream=null;
+var el={};
+['uploadZone','uploadHint','camVideo','preview','fileInput','btnTake','btnPick','btnGo','resultCard','resultInner','fromInput','toInput','btnNav','navResult','modelStatus'].forEach(function(id){el[id]=document.getElementById(id);});
+
+// =============== IndexedDB 缓存 ===============
+function idb() {return new Promise(function(ok,no){
+  var r=indexedDB.open('sg',1);
+  r.onupgradeneeded=function(e){e.target.result.createObjectStore('m');};
+  r.onsuccess=function(e){ok(e.target.result);};
+  r.onerror=function(e){ok(null);};
+});}
+function idbGet(db){return new Promise(function(ok){
+  if(!db){ok(null);return;}
+  var t=db.transaction('m','readonly');
+  var r=t.objectStore('m').get('onnx');
+  r.onsuccess=function(){ok(r.result);};
+  r.onerror=function(){ok(null);};
+});}
+function idbPut(db,buf){if(!db)return;var t=db.transaction('m','readwrite');t.objectStore('m').put(buf,'onnx');}
+
+// =============== 加载模型 ===============
+async function init(){
+  try{
+    ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+    var db=await idb();
+    var cached=db?await idbGet(db):null;
+
+    if(cached){
+      el.modelStatus.textContent='⚡ 从缓存加载...';
+      session=await ort.InferenceSession.create(cached,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+      el.modelStatus.textContent='✅ 模型就绪（已缓存）';
+      el.btnGo.disabled=false;
+      return;
+    }
+
+    el.modelStatus.textContent='⬇ 首次下载模型(~18MB)...';
+    var resp=await fetch(URL);
+    var buf=await resp.arrayBuffer();
+    var arr=new Uint8Array(buf);
+
+    if(db){el.modelStatus.textContent='💾 缓存模型...';idbPut(db,arr);}
+
+    el.modelStatus.textContent='🔧 加载模型...';
+    session=await ort.InferenceSession.create(arr,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+    el.modelStatus.textContent='✅ 模型就绪（已缓存·下次秒开）';
+    el.btnGo.disabled=false;
+
+  }catch(e){
+    el.modelStatus.textContent='❌ 加载失败，刷新重试';
+    console.error(e);
+  }
+}
+
+// =============== 预处理 + 推理 ===============
+function preproc(imgData){
+  var sc=document.createElement('canvas');sc.width=imgData.width;sc.height=imgData.height;
+  sc.getContext('2d').putImageData(imgData,0,0);
+  var dc=document.createElement('canvas');dc.width=32;dc.height=32;
+  dc.getContext('2d').drawImage(sc,0,0,32,32);
+  var px=dc.getContext('2d').getImageData(0,0,32,32).data;
+  var t=new Float32Array(3*1024);
+  for(var i=0;i<1024;i++){
+    t[i]=(px[i*4]/255-MEAN[0])/STD[0];
+    t[1024+i]=(px[i*4+1]/255-MEAN[1])/STD[1];
+    t[2048+i]=(px[i*4+2]/255-MEAN[2])/STD[2];
+  }
+  return new ort.Tensor('float32',t,[1,3,32,32]);
+}
+
+async function infer(imgData){
+  var out=await session.run({input:preproc(imgData)});
+  var lp=out.output.data, mv=-Infinity, mi=0;
+  for(var i=0;i<43;i++){if(lp[i]>mv){mv=lp[i];mi=i;}}
+  var se=0;for(var i=0;i<43;i++)se+=Math.exp(lp[i]-mv);
+  return{cls:mi,conf:1/se};
+}
+
+// =============== 拍照 / 选图 ===============
+el.uploadZone.addEventListener('click',function(){el.fileInput.click();});
+el.btnTake.addEventListener('click',function(e){e.stopPropagation();el.fileInput.click();});
+el.btnPick.addEventListener('click',function(e){e.stopPropagation();el.fileInput.click();});
+
+el.fileInput.addEventListener('change',function(){
+  if(!el.fileInput.files[0])return;
+  loadImg(el.fileInput.files[0]);
+});
+
+// 粘贴
+document.addEventListener('paste',function(e){
+  var it=e.clipboardData.items;
+  for(var i=0;i<it.length;i++){if(it[i].type.indexOf('image/')===0){loadImg(it[i].getAsFile());break;}}
+});
+
+// 拖拽
+el.uploadZone.addEventListener('dragover',function(e){e.preventDefault();});
+el.uploadZone.addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files[0])loadImg(e.dataTransfer.files[0]);});
+
+function loadImg(file){
+  var r=new FileReader();
+  r.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      c.getContext('2d').drawImage(img,0,0);
+      currentImg=c.getContext('2d').getImageData(0,0,c.width,c.height);
+      el.preview.src=e.target.result;
+      el.preview.classList.remove('hidden');
+      el.uploadHint.classList.add('hidden');
+      el.camVideo.classList.add('hidden');
+      el.btnGo.disabled=false;
+      el.btnGo.textContent='🔍 开始识别';
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+// =============== 识别 ===============
+el.btnGo.addEventListener('click',async function(){
+  if(!currentImg){alert('请先选择一张图片');return;}
+  el.btnGo.disabled=true;el.btnGo.textContent='⏳ 识别中...';
+  el.resultCard.classList.remove('hidden');
+  el.resultInner.innerHTML='<div class="loading"><div class="spinner"></div>识别中...</div>';
+  try{
+    var r=await infer(currentImg);
+    var s=SIGNS[r.cls], name=s[0], adv=s[1], em=s[2];
+    var c=r.conf>0.7?'#2ecc71':r.conf>0.4?'#f39c12':'#e74c3c';
+    var pct=(r.conf*100).toFixed(0);
+    el.resultInner.innerHTML=
+      '<div class="emoji">'+em+'</div>'+
+      '<div class="name">'+name+'</div>'+
+      '<div class="meta">Class '+r.cls+'</div>'+
+      '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+c+'"></div></div>'+
+      '<div class="bar-text">置信度 <b>'+(r.conf*100).toFixed(1)+'%</b></div>'+
+      '<div class="nav-tip"><div class="label">🗺 导航建议</div><div class="text">'+adv+'</div></div>';
+  }catch(e){
+    el.resultInner.innerHTML='<div style="color:#e74c3c;text-align:center">❌ '+e.message+'</div>';
+  }
+  el.btnGo.disabled=false;el.btnGo.textContent='🔍 开始识别';
+});
+
+// =============== 高德导航 ===============
+async function geocode(addr){
+  var u='https://restapi.amap.com/v3/geocode/geo?key='+KEY+'&address='+encodeURIComponent(addr);
+  var r=await(await fetch(u)).json();
+  if(r.status==='1'&&parseInt(r.count)>0){
+    var l=r.geocodes[0].location.split(',');
+    return{lng:parseFloat(l[0]),lat:parseFloat(l[1]),name:r.geocodes[0].formatted_address||addr};
+  }
+  throw new Error('找不到地址: '+addr);
+}
+
+el.btnNav.addEventListener('click',async function(){
+  var from=el.fromInput.value.trim(), to=el.toInput.value.trim();
+  if(!from||!to)return alert('请输入起点和目的地');
+  el.navResult.innerHTML='<div class="loading"><div class="spinner"></div>规划中...</div>';
+  try{
+    var o=await geocode(from), d=await geocode(to);
+    var u='https://restapi.amap.com/v3/direction/driving?key='+KEY+'&origin='+o.lng+','+o.lat+'&destination='+d.lng+','+d.lat+'&extensions=base';
+    var data=await(await fetch(u)).json();
+    if(data.status==='1'&&data.route.paths.length>0){
+      var p=data.route.paths[0];
+      var dist=(parseInt(p.distance)/1000).toFixed(1), dur=Math.round(parseInt(p.duration)/60);
+      var steps=p.steps.map(function(s,i){return (i+1)+'. '+s.instruction;}).slice(0,8);
+      var amap='https://uri.amap.com/navigation?from='+o.lng+','+o.lat+','+encodeURIComponent(from)+'&to='+d.lng+','+d.lat+','+encodeURIComponent(to)+'&mode=car';
+      el.navResult.innerHTML=
+        '<div class="route-box">'+
+        '<div class="head">🚗 '+from+' → '+to+'<br>距离 <b>'+dist+' km</b> | 预计 <b>'+dur+' 分钟</b></div>'+
+        '<div class="steps">'+steps.join('<br>')+'</div>'+
+        (p.steps.length>8?'<div style="color:#999;font-size:0.8em">...共'+p.steps.length+'步</div>':'')+
+        '<a href="'+amap+'" target="_blank" style="display:inline-block;margin-top:8px;background:#1677ff;color:#fff;padding:8px 20px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:0.9em">📱 手机高德导航</a>'+
+        '</div>';
+    }else{
+      el.navResult.innerHTML='<div style="color:#e74c3c;padding:8px">路线规划失败: '+(data.info||'未知')+'</div>';
+    }
+  }catch(e){
+    el.navResult.innerHTML='<div style="color:#e74c3c;padding:8px">❌ '+e.message+'</div>';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
