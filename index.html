@@ -28,6 +28,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bar-fill{height:100%;border-radius:6px;transition:width 0.4s}
 .nav-tip{background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:10px;margin-top:10px}
 .nav-tip .lb{font-size:0.75em;color:#ad6800;font-weight:bold}
+.mark-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px;margin-top:10px;text-align:center}
+.mark-box .ask{font-size:0.85em;color:#166534;margin-bottom:6px}
+.mark-box .mark-btn{display:inline-block;background:#22c55e;color:#fff;border:none;border-radius:6px;padding:6px 18px;font-size:0.85em;font-weight:600;cursor:pointer;margin:2px 4px;transition:0.15s}
+.mark-box .mark-btn:active{background:#16a34a}
+.mark-box .mark-btn.skip{background:#fff;color:#888;border:1px solid #ddd}
+.mark-box .mark-btn.skip:active{background:#f5f5f5}
+.mark-box .thanks{font-size:0.85em;color:#22c55e;font-weight:bold}
+.mark-stats{font-size:0.75em;color:#999;margin-top:4px}
 .route-box{background:#e6f7ff;border:1px solid #91d5ff;border-radius:8px;padding:10px;margin-top:10px}
 .steps-list{max-height:300px;overflow-y:auto;font-size:0.85em;color:#555;line-height:1.8;margin-top:6px;padding-right:4px}
 .btn-amap{display:inline-block;background:#fff;color:#1677ff;border:1.5px solid #1677ff;border-radius:7px;padding:6px 14px;font-size:0.85em;font-weight:600;text-decoration:none;cursor:pointer;margin-top:8px;transition:0.15s}
@@ -257,7 +265,28 @@ bg.addEventListener('click',async function(){
       '<div style="text-align:center;font-size:0.8em;color:#888;margin-bottom:6px">Class '+r.cls+'</div>'+
       '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+c+'"></div></div>'+
       '<div style="text-align:center;font-size:0.85em">置信度 <b>'+(r.conf*100).toFixed(1)+'%</b></div>'+
-      '<div class="nav-tip"><div class="lb">🗺 导航建议</div><div style="margin-top:4px">'+s[1]+'</div></div>';
+      '<div class="nav-tip"><div class="lb">🗺 导航建议</div><div style="margin-top:4px">'+s[1]+'</div></div>'+
+      '<div class="mark-box" id="mk">'+
+        '<div class="ask">📌 是否标记该路牌让更多司机看到？</div>'+
+        '<button class="mark-btn" id="mk-yes">✅ 是的，标记它</button>'+
+        '<button class="mark-btn skip" id="mk-no">⏭ 不了</button>'+
+        '<div class="mark-stats" id="mk-info"></div>'+
+      '</div>';
+    // mark button logic
+    setTimeout(function(){
+      var cls=r.cls, name=s[0];
+      var stored=JSON.parse(localStorage.getItem('sg_marks')||'{}');
+      var info=document.getElementById('mk-info');
+      if(stored[name]){info.textContent='📊 该路牌已被 '+stored[name]+' 位司机标记过';}
+      document.getElementById('mk-yes').onclick=function(){
+        stored[name]=(stored[name]||0)+1;
+        localStorage.setItem('sg_marks',JSON.stringify(stored));
+        document.getElementById('mk').innerHTML='<div class="thanks">🙏 感谢你的标记！该路牌已被 <b>'+stored[name]+'</b> 位司机标记</div>';
+      };
+      document.getElementById('mk-no').onclick=function(){
+        document.getElementById('mk').innerHTML='<div class="thanks" style="color:#999">👌 好的，安全驾驶！</div>';
+      };
+    },50);
   }catch(e){
     ri.innerHTML='<div style="color:#e74c3c;text-align:center;padding:10px">❌ 识别失败: '+e.message+'</div>';
   }
