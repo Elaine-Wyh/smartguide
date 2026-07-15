@@ -2,473 +2,310 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>交通标志识别导航</title>
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#333;min-height:100vh}
-.header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;padding:16px 20px;text-align:center}
-.header h1{font-size:1.4em}
-.header p{font-size:0.85em;opacity:0.7;margin-top:4px}
-.container{max-width:800px;margin:0 auto;padding:15px}
-.card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-.card h3{font-size:1em;margin-bottom:10px;color:#1a1a2e}
-.upload-area{border:2px dashed #ccc;border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:0.3s}
-.upload-area:hover{border-color:#1677ff;background:#f0f7ff}
-.upload-area video,.upload-area img{max-width:100%;max-height:300px;border-radius:8px}
-.upload-area .placeholder{font-size:3em;margin-bottom:8px}
-.upload-area .text{color:#999;font-size:0.9em}
-.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-.btn{padding:10px 20px;border:none;border-radius:8px;font-size:0.95em;cursor:pointer;font-weight:600;transition:0.2s}
-.btn-primary{background:#1677ff;color:white}
-.btn-primary:hover{background:#0958d9}
-.btn-outline{background:white;color:#1677ff;border:2px solid #1677ff}
-.btn-outline:hover{background:#f0f7ff}
-.btn-danger{background:#ff4d4f;color:white}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
-.result-sign{text-align:center;padding:10px}
-.result-sign .emoji{font-size:3em}
-.result-sign .name{font-size:1.6em;font-weight:bold;margin:8px 0}
-.result-sign .en{font-size:0.85em;color:#888}
-.conf-bar{background:#eee;border-radius:8px;height:22px;overflow:hidden;margin:10px 0}
-.conf-fill{height:100%;border-radius:8px;transition:width 0.5s}
-.conf-text{text-align:center;font-size:0.9em}
-.advice{background:#fff7e6;border:1px solid #ffd591;border-radius:10px;padding:12px;margin-top:10px}
-.advice .label{font-size:0.8em;color:#ad6800;font-weight:bold}
-.advice .text{font-size:1.1em;margin-top:4px}
-.route{background:#e6f7ff;border:1px solid #91d5ff;border-radius:10px;padding:12px;margin-top:10px}
-.route .summary{font-size:1.1em;font-weight:bold;color:#1677ff}
-.route .steps{font-size:0.9em;color:#555;margin-top:8px;line-height:1.8}
-.hidden{display:none}
-input[type=text]{width:100%;padding:10px;border:1px solid #d9d9d9;border-radius:8px;font-size:0.95em;margin-bottom:8px}
-input[type=text]:focus{outline:none;border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,0.1)}
-.loading{text-align:center;padding:20px;color:#999}
-.spinner{border:3px solid #eee;border-top:3px solid #1677ff;border-radius:50%;width:30px;height:30px;animation:spin 0.8s linear infinite;margin:10px auto}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:14px 16px;text-align:center}
+.header h1{font-size:1.2em}
+#st{font-size:0.7em;margin-top:4px;opacity:0.85}
+.container{max-width:700px;margin:0 auto;padding:10px}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.card h3{font-size:0.95em;margin-bottom:8px;color:#1a1a2e}
+.upload-zone{border:2px dashed #d9d9d9;border-radius:10px;min-height:140px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.upload-zone img{max-width:100%;max-height:260px;border-radius:6px}
+.upload-zone .hint{color:#999;font-size:0.85em;text-align:center;padding:20px}
+.upload-zone .hint span{font-size:2.8em;display:block;margin-bottom:6px}
+.btn-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.btn{padding:10px 18px;border:none;border-radius:7px;font-size:0.9em;font-weight:600;cursor:pointer;transition:0.15s;background:#fff;color:#1677ff;border:1.5px solid #1677ff}
+.btn:active{background:#e6f0ff}
+.btn-go{background:#1677ff;color:#fff;border:none}
+.btn-go:active{background:#0958d9}
+.btn:disabled{opacity:0.4;pointer-events:none}
+.btn-nav{background:#1677ff;color:#fff;border:none;width:100%;margin-top:4px}
+.bar{background:#eee;border-radius:6px;height:20px;overflow:hidden;margin:8px 0}
+.bar-fill{height:100%;border-radius:6px;transition:width 0.4s}
+.nav-tip{background:#fff7e6;border:1px solid #ffd591;border-radius:8px;padding:10px;margin-top:10px}
+.nav-tip .lb{font-size:0.75em;color:#ad6800;font-weight:bold}
+.route-box{background:#e6f7ff;border:1px solid #91d5ff;border-radius:8px;padding:10px;margin-top:10px}
+.hidden{display:none!important}
+input[type=text]{width:100%;padding:9px;border:1px solid #d9d9d9;border-radius:7px;font-size:0.9em;margin-bottom:6px;outline:none}
+input[type=text]:focus{border-color:#1677ff}
+.loading{text-align:center;padding:16px;color:#999}
+.spinner{width:28px;height:28px;border:3px solid #eee;border-top-color:#1677ff;border-radius:50%;animation:spin 0.7s linear infinite;margin:8px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
-.model-status{font-size:0.75em;padding:4px 10px;border-radius:10px;display:inline-block;margin-top:4px}
-.model-ready{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
-.model-loading{background:#fff7e6;color:#fa8c16;border:1px solid #ffd591}
-.model-error{background:#fff2f0;color:#ff4d4f;border:1px solid #ffccc7}
-.tabs{display:flex;gap:0;margin-bottom:-1px}
-.tab{padding:8px 16px;cursor:pointer;border:1px solid #d9d9d9;background:#fafafa;font-size:0.85em;border-radius:8px 8px 0 0}
-.tab.active{background:white;border-bottom-color:white;color:#1677ff;font-weight:bold}
-footer{text-align:center;padding:20px;color:#bbb;font-size:0.75em}
+footer{text-align:center;padding:16px;color:#bbb;font-size:0.7em}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🚗 交通标志实时识别 + 智能导航</h1>
-  <p>GTSRB 43类 | PreActResNet + SE注意力 | 高德地图</p>
-  <div id="modelStatus" class="model-status model-loading">⏳ 加载模型中...</div>
+  <h1>🚗 交通标志识别 + 导航</h1>
+  <div id="st">⏳ 加载模型...</div>
 </div>
 
 <div class="container">
 
-  <!-- 拍照/上传 -->
   <div class="card">
-    <h3>📷 拍摄或上传交通标志</h3>
-    <div class="upload-area" id="uploadArea">
-      <div id="uploadPlaceholder">
-        <div class="placeholder">📸</div>
-        <div class="text">点击拍照 / 上传图片 / 粘贴截图</div>
-      </div>
-      <video id="cameraVideo" autoplay playsinline muted class="hidden"></video>
-      <canvas id="captureCanvas" class="hidden"></canvas>
-      <img id="previewImg" class="hidden" alt="预览">
+    <h3>📷 上传交通标志照片</h3>
+    <div class="upload-zone" id="zone">
+      <div class="hint" id="hint"><span>📸</span>点击此处拍照 / 选择图片</div>
+      <img id="pv" class="hidden" alt="">
     </div>
+    <input type="file" id="fi" accept="image/*" capture="environment" class="hidden">
     <div class="btn-row">
-      <button class="btn btn-primary" id="btnCamera">📷 拍照</button>
-      <button class="btn btn-outline" id="btnUpload">📁 上传</button>
-      <button class="btn btn-danger hidden" id="btnStop" style="display:none">⏹ 关闭摄像头</button>
-      <input type="file" id="fileInput" accept="image/*" class="hidden">
-      <button class="btn btn-primary" id="btnRecognize" disabled>🔍 识别路标</button>
+      <button class="btn" id="bt">📷 拍照</button>
+      <button class="btn" id="bp">🖼 相册</button>
+      <button class="btn btn-go" id="bg" disabled>🔍 开始识别</button>
     </div>
   </div>
 
-  <!-- 识别结果 -->
-  <div class="card hidden" id="resultCard">
+  <div class="card hidden" id="rc">
     <h3>🏷️ 识别结果</h3>
-    <div class="result-sign" id="resultContent"></div>
+    <div id="ri"></div>
   </div>
 
-  <!-- 导航 -->
   <div class="card">
-    <h3>🗺️ 路线导航（高德地图）</h3>
-    <input type="text" id="originInput" placeholder="起点，如：浙江大学紫金港校区（留空自动定位）">
-    <input type="text" id="destInput" placeholder="目的地，如：杭州西湖">
-    <div class="btn-row">
-      <button class="btn btn-primary" id="btnRoute">🚀 规划路线</button>
-    </div>
-    <div id="routeResult"></div>
+    <h3>🗺️ 路线导航</h3>
+    <input type="text" id="fi2" placeholder="起点，如：杭州东站">
+    <input type="text" id="ti" placeholder="目的地，如：西湖">
+    <button class="btn btn-nav" id="bn">🚀 规划路线</button>
+    <div id="nr"></div>
   </div>
 
 </div>
 
-<footer>基于 ImprovedNet (PreActResNet + SE) | 模型在浏览器本地运行 | 数据不出设备</footer>
+<footer>PreActResNet + SE注意力 · 浏览器本地推理 · 数据不出设备</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.all.min.js"></script>
 <script>
-// ============================================================
-// 配置
-// ============================================================
-const AMAP_KEY = 'aecf4844678fa2a6c8c424b583ce806d';
-const MODEL_URL = 'model.onnx';
-const IMG_SIZE = 32;
-const MEAN = [0.3337, 0.3064, 0.3171];
-const STD = [0.2672, 0.2564, 0.2629];
+(function(){
+var AK='aecf4844678fa2a6c8c424b583ce806d';
+var MP='model.onnx';
+var MN=[0.3337,0.3064,0.3171];
+var SD=[0.2672,0.2564,0.2629];
 
-// 43类标志信息
-const SIGN_INFO = {
-  0:['限速20km/h','前方限速20公里/小时，请减速慢行','🚗'],
-  1:['限速30km/h','前方限速30公里/小时，请减速慢行','🚗'],
-  2:['限速50km/h','前方限速50公里/小时','🚗'],
-  3:['限速60km/h','前方限速60公里/小时','🚗'],
-  4:['限速70km/h','前方限速70公里/小时','🚗'],
-  5:['限速80km/h','前方限速80公里/小时','🚗'],
-  6:['解除80限速','限速80公里/小时已解除','ℹ️'],
-  7:['限速100km/h','前方限速100公里/小时','🚗'],
-  8:['限速120km/h','前方限速120公里/小时','🚗'],
-  9:['禁止超车','前方禁止超车，请勿变道超车','🚫'],
-  10:['禁止大车超车','前方禁止大型车辆超车','🚫'],
-  11:['路口优先','前方路口您有优先通行权','ℹ️'],
-  12:['优先道路','当前为优先道路','ℹ️'],
-  13:['减速让行','前方路口请减速让行','⚠️'],
-  14:['停车让行','前方路口请停车让行！','⚠️'],
-  15:['禁止通行','禁止一切车辆通行，请立即绕行！','🚫'],
-  16:['大车禁行','禁止大型车辆通行','🚫'],
-  17:['禁止驶入','禁止驶入，请立即绕行！','🚫'],
-  18:['注意危险','前方危险路段，请谨慎驾驶','⚠️'],
-  19:['左急弯','前方左急弯，请减速','⚠️'],
-  20:['右急弯','前方右急弯，请减速','⚠️'],
-  21:['连续弯道','前方连续弯道，请减速慢行','⚠️'],
-  22:['路面不平','前方路面不平，请减速','⚠️'],
-  23:['路面湿滑','前方路面湿滑，请减速慢行','⚠️'],
-  24:['右侧变窄','前方道路右侧变窄','⚠️'],
-  25:['道路施工','前方道路施工，请减速慢行','⚠️'],
-  26:['信号灯','前方交通信号灯，请注意','⚠️'],
-  27:['注意行人','前方有行人，请减速让行','⚠️'],
-  28:['注意儿童','前方学校区域，请减速慢行','⚠️'],
-  29:['注意自行车','注意自行车横穿道路','⚠️'],
-  30:['注意冰雪','前方冰雪路面，请减速避免急刹','⚠️'],
-  31:['野生动物','注意野生动物穿越道路','⚠️'],
-  32:['解除所有限制','所有限速和禁止超车已解除','ℹ️'],
-  33:['前方右转','前方路口请右转','⬆️'],
-  34:['前方左转','前方路口请左转','⬆️'],
-  35:['直行','前方路口请直行','⬆️'],
-  36:['直行或右转','前方路口可直行或右转','⬆️'],
-  37:['直行或左转','前方路口可直行或左转','⬆️'],
-  38:['靠右行驶','请靠右侧车道行驶','⬆️'],
-  39:['靠左行驶','请靠左侧车道行驶','⬆️'],
-  40:['环岛','前方环岛，请绕环岛行驶','⬆️'],
-  41:['解除禁超','禁止超车限制已解除','ℹ️'],
-  42:['解除大车禁超','禁止大型车超车已解除','ℹ️'],
-};
+var SG={0:['限速20km/h','前方限速20，请减速','🚗'],1:['限速30km/h','前方限速30，请减速','🚗'],2:['限速50km/h','前方限速50','🚗'],3:['限速60km/h','前方限速60','🚗'],4:['限速70km/h','前方限速70','🚗'],5:['限速80km/h','前方限速80','🚗'],6:['解除80限速','限速80已解除','ℹ'],7:['限速100km/h','前方限速100','🚗'],8:['限速120km/h','前方限速120','🚗'],9:['禁止超车','禁止超车，请勿变道','🚫'],10:['大车禁超','禁止大型车超车','🚫'],11:['路口优先','路口有优先通行权','ℹ'],12:['优先道路','当前为优先道路','ℹ'],13:['减速让行','请减速让行','⚠'],14:['停车让行','请停车让行！','⚠'],15:['禁止通行','禁止通行，请绕行！','🚫'],16:['大车禁行','禁止大车通行','🚫'],17:['禁止驶入','禁止驶入，请绕行！','🚫'],18:['注意危险','危险路段，谨慎驾驶','⚠'],19:['左急弯','左急弯，请减速','⚠'],20:['右急弯','右急弯，请减速','⚠'],21:['连续弯道','连续弯道，请减速','⚠'],22:['路面不平','路面不平，请减速','⚠'],23:['路面湿滑','路面湿滑，请减速','⚠'],24:['右侧变窄','道路右侧变窄','⚠'],25:['道路施工','道路施工，请减速','⚠'],26:['信号灯','前方信号灯','⚠'],27:['注意行人','注意行人','⚠'],28:['注意儿童','学校区域，请减速','⚠'],29:['注意自行车','注意自行车','⚠'],30:['注意冰雪','冰雪路面，避免急刹','⚠'],31:['野生动物','注意野生动物','⚠'],32:['解除所有限制','所有限制已解除','ℹ'],33:['前方右转','路口请右转','⬆'],34:['前方左转','路口请左转','⬆'],35:['直行','路口请直行','⬆'],36:['直行或右转','可直行或右转','⬆'],37:['直行或左转','可直行或左转','⬆'],38:['靠右行驶','请靠右行驶','⬆'],39:['靠左行驶','请靠左行驶','⬆'],40:['环岛','请绕环岛行驶','⬆'],41:['解除禁超','禁止超车已解除','ℹ'],42:['大车禁超解除','大车禁止超车已解除','ℹ']};
 
-// ============================================================
-// 全局状态
-// ============================================================
-let session = null;
-let currentImage = null;       // ImageData or null
-let cameraStream = null;
+var session=null;
+var imgSrc=null;  // data URL of the loaded image
 
-// ============================================================
-// DOM 元素
-// ============================================================
-const $ = id => document.getElementById(id);
-const uploadArea = $('uploadArea');
-const uploadPlaceholder = $('uploadPlaceholder');
-const cameraVideo = $('cameraVideo');
-const captureCanvas = $('captureCanvas');
-const previewImg = $('previewImg');
-const fileInput = $('fileInput');
-const btnCamera = $('btnCamera');
-const btnUpload = $('btnUpload');
-const btnStop = $('btnStop');
-const btnRecognize = $('btnRecognize');
-const btnRoute = $('btnRoute');
-const resultCard = $('resultCard');
-const resultContent = $('resultContent');
-const routeResult = $('routeResult');
-const modelStatus = $('modelStatus');
-const originInput = $('originInput');
-const destInput = $('destInput');
+// DOM refs
+var zone=document.getElementById('zone');
+var hint=document.getElementById('hint');
+var pv=document.getElementById('pv');
+var fi=document.getElementById('fi');
+var bt=document.getElementById('bt');
+var bp=document.getElementById('bp');
+var bg=document.getElementById('bg');
+var rc=document.getElementById('rc');
+var ri=document.getElementById('ri');
+var fi2=document.getElementById('fi2');
+var ti=document.getElementById('ti');
+var bn=document.getElementById('bn');
+var nr=document.getElementById('nr');
+var st=document.getElementById('st');
 
-// ============================================================
-// 模型加载
-// ============================================================
-async function loadModel() {
-  try {
-    modelStatus.textContent = '⏳ 加载模型中...';
-    modelStatus.className = 'model-status model-loading';
-    session = await ort.InferenceSession.create(MODEL_URL);
-    modelStatus.textContent = '✅ 模型就绪';
-    modelStatus.className = 'model-status model-ready';
-    btnRecognize.disabled = false;
-  } catch(e) {
+// ========== IndexedDB cache ==========
+function openCache(){
+  return new Promise(function(ok){
+    var r=indexedDB.open('sg2',1);
+    r.onupgradeneeded=function(e){e.target.result.createObjectStore('m');};
+    r.onsuccess=function(e){ok(e.target.result);};
+    r.onerror=function(){ok(null);};
+  });
+}
+function readCache(db){
+  return new Promise(function(ok){
+    var t=db.transaction('m','readonly');
+    var r=t.objectStore('m').get('onnx');
+    r.onsuccess=function(){ok(r.result);};
+    r.onerror=function(){ok(null);};
+  });
+}
+function writeCache(db,buf){
+  var t=db.transaction('m','readwrite');
+  t.objectStore('m').put(buf,'onnx');
+}
+
+// ========== Model loading ==========
+async function loadModel(){
+  try{
+    ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+
+    var db=await openCache();
+    var cached=db?await readCache(db):null;
+
+    if(cached){
+      st.textContent='⚡ 从缓存加载...';
+      session=await ort.InferenceSession.create(cached,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+      st.textContent='✅ 模型就绪（已缓存）';
+      bg.disabled=false;
+      return;
+    }
+
+    st.textContent='⬇ 正在下载模型(~18MB)...';
+    var resp=await fetch(MP);
+    var buf=await resp.arrayBuffer();
+    var arr=new Uint8Array(buf);
+    st.textContent='下载完成，正在初始化模型...';
+
+    if(db) writeCache(db,arr);
+
+    session=await ort.InferenceSession.create(arr,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+    st.textContent='✅ 模型就绪（已缓存，下次秒开）';
+    bg.disabled=false;
+
+  }catch(e){
+    st.textContent='❌ 模型加载失败，请刷新页面重试';
     console.error(e);
-    modelStatus.textContent = '❌ 模型加载失败: ' + e.message;
-    modelStatus.className = 'model-status model-error';
   }
 }
 
-// ============================================================
-// 图片预处理（与 Python predict_transform 完全一致）
-// ============================================================
-function preprocessImage(imageData) {
-  // 1. 从 canvas 获取 RGBA 数据 → resize 到 32×32
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = imageData.width;
-  srcCanvas.height = imageData.height;
-  const srcCtx = srcCanvas.getContext('2d');
-  srcCtx.putImageData(imageData, 0, 0);
-
-  // 2. Resize 到 32×32
-  const dstCanvas = document.createElement('canvas');
-  dstCanvas.width = IMG_SIZE;
-  dstCanvas.height = IMG_SIZE;
-  const dstCtx = dstCanvas.getContext('2d');
-  dstCtx.drawImage(srcCanvas, 0, 0, IMG_SIZE, IMG_SIZE);
-  const pixels = dstCtx.getImageData(0, 0, IMG_SIZE, IMG_SIZE).data;
-
-  // 3. 转为 float32 tensor [1, 3, 32, 32]，归一化
-  const tensor = new Float32Array(3 * IMG_SIZE * IMG_SIZE);
-  for (let i = 0; i < IMG_SIZE * IMG_SIZE; i++) {
-    tensor[i] = (pixels[i * 4] / 255 - MEAN[0]) / STD[0];              // R
-    tensor[IMG_SIZE * IMG_SIZE + i] = (pixels[i * 4 + 1] / 255 - MEAN[1]) / STD[1];  // G
-    tensor[2 * IMG_SIZE * IMG_SIZE + i] = (pixels[i * 4 + 2] / 255 - MEAN[2]) / STD[2];  // B
-  }
-
-  return new ort.Tensor('float32', tensor, [1, 3, IMG_SIZE, IMG_SIZE]);
-}
-
-// ============================================================
-// 推理
-// ============================================================
-async function recognize(imageData) {
-  if (!session) throw new Error('模型未加载');
-  const input = preprocessImage(imageData);
-  const outputs = await session.run({ input });
-  const logProbs = outputs.output.data;  // log_softmax [43]
-  // 转为概率
-  let maxVal = -Infinity;
-  let maxIdx = 0;
-  for (let i = 0; i < 43; i++) {
-    if (logProbs[i] > maxVal) { maxVal = logProbs[i]; maxIdx = i; }
-  }
-  // 计算 softmax
-  let sumExp = 0;
-  for (let i = 0; i < 43; i++) sumExp += Math.exp(logProbs[i] - maxVal);
-  const confidence = Math.exp(maxVal - maxVal) / sumExp;
-  return { class_id: maxIdx, confidence };
-}
-
-// ============================================================
-// 显示结果
-// ============================================================
-function showResult(classId, confidence) {
-  const [name, advice, emoji] = SIGN_INFO[classId];
-  const color = confidence > 0.7 ? '#2ecc71' : confidence > 0.4 ? '#f39c12' : '#e74c3c';
-  resultContent.innerHTML = `
-    <div class="emoji">${emoji}</div>
-    <div class="name">${name}</div>
-    <div class="en">Class ${classId}</div>
-    <div class="conf-bar"><div class="conf-fill" style="width:${(confidence*100).toFixed(0)}%;background:${color}"></div></div>
-    <div class="conf-text">置信度: <b>${(confidence*100).toFixed(1)}%</b></div>
-    <div class="advice">
-      <div class="label">🗺️ 导航建议</div>
-      <div class="text">${advice}</div>
-    </div>
-  `;
-  resultCard.classList.remove('hidden');
-}
-
-// ============================================================
-// 摄像头
-// ============================================================
-async function startCamera() {
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
-    });
-    cameraVideo.srcObject = cameraStream;
-    cameraVideo.classList.remove('hidden');
-    uploadPlaceholder.classList.add('hidden');
-    previewImg.classList.add('hidden');
-    btnCamera.style.display = 'none';
-    btnStop.style.display = '';
-  } catch(e) {
-    alert('摄像头不可用: ' + e.message + '\n请使用上传模式');
-  }
-}
-
-function stopCamera() {
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
-  }
-  cameraVideo.classList.add('hidden');
-  uploadPlaceholder.classList.remove('hidden');
-  btnCamera.style.display = '';
-  btnStop.style.display = 'none';
-  currentImage = null;
-  btnRecognize.disabled = true;
-}
-
-function captureFrame() {
-  if (!cameraStream) return;
-  captureCanvas.width = cameraVideo.videoWidth;
-  captureCanvas.height = cameraVideo.videoHeight;
-  const ctx = captureCanvas.getContext('2d');
-  ctx.drawImage(cameraVideo, 0, 0);
-  currentImage = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-  previewImg.src = captureCanvas.toDataURL('image/jpeg', 0.9);
-  previewImg.classList.remove('hidden');
-  uploadPlaceholder.classList.add('hidden');
-  cameraVideo.classList.add('hidden');
-  btnRecognize.disabled = false;
-}
-
-// ============================================================
-// 上传图片
-// ============================================================
-function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      currentImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      previewImg.src = e.target.result;
-      previewImg.classList.remove('hidden');
-      uploadPlaceholder.classList.add('hidden');
-      cameraVideo.classList.add('hidden');
-      stopCamera();
-      btnRecognize.disabled = false;
+// ========== Preprocessing ==========
+function preprocess(dataUrl){
+  return new Promise(function(ok){
+    var img=new Image();
+    img.onload=function(){
+      var c=document.createElement('canvas');
+      c.width=32;c.height=32;
+      c.getContext('2d').drawImage(img,0,0,32,32);
+      var px=c.getContext('2d').getImageData(0,0,32,32).data;
+      var t=new Float32Array(3*1024);
+      for(var i=0;i<1024;i++){
+        t[i]=(px[i*4]/255-MN[0])/SD[0];
+        t[1024+i]=(px[i*4+1]/255-MN[1])/SD[1];
+        t[2048+i]=(px[i*4+2]/255-MN[2])/SD[2];
+      }
+      ok(new ort.Tensor('float32',t,[1,3,32,32]));
     };
-    img.src = e.target.result;
+    img.src=dataUrl;
+  });
+}
+
+async function recognize(dataUrl){
+  var inp=await preprocess(dataUrl);
+  var out=await session.run({input:inp});
+  var lp=out.output.data;
+  var mv=-Infinity, mi=0;
+  for(var i=0;i<43;i++){if(lp[i]>mv){mv=lp[i];mi=i;}}
+  var se=0;for(var i=0;i<43;i++)se+=Math.exp(lp[i]-mv);
+  return{cls:mi,conf:1/se};
+}
+
+// ========== Image loading ==========
+function onImgLoaded(file){
+  var reader=new FileReader();
+  reader.onload=function(evt){
+    var dataUrl=evt.target.result;
+    // Preview
+    pv.src=dataUrl;
+    pv.classList.remove('hidden');
+    hint.classList.add('hidden');
+    // Store for recognition
+    imgSrc=dataUrl;
+    bg.disabled=false;
+    bg.textContent='🔍 开始识别';
   };
   reader.readAsDataURL(file);
 }
 
-// ============================================================
-// 高德 API
-// ============================================================
-async function geocode(address) {
-  const url = `https://restapi.amap.com/v3/geocode/geo?key=${AMAP_KEY}&address=${encodeURIComponent(address)}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status === '1' && parseInt(data.count) > 0) {
-    const loc = data.geocodes[0].location.split(',');
-    return { lng: parseFloat(loc[0]), lat: parseFloat(loc[1]), name: data.geocodes[0].formatted_address || address };
-  }
-  throw new Error('地理编码失败: ' + address);
-}
+// ========== Events ==========
+zone.addEventListener('click',function(){fi.click();});
+bt.addEventListener('click',function(e){e.stopPropagation();fi.click();});
+bp.addEventListener('click',function(e){e.stopPropagation();fi.click();});
 
-async function planRoute(origin, dest) {
-  const o = await geocode(origin);
-  const d = await geocode(dest);
-  const url = `https://restapi.amap.com/v3/direction/driving?key=${AMAP_KEY}&origin=${o.lng},${o.lat}&destination=${d.lng},${d.lat}&extensions=base`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status === '1' && data.route.paths.length > 0) {
-    const path = data.route.paths[0];
-    const steps = path.steps.map(s => s.instruction);
-    return {
-      origin: o, dest: d,
-      distance_km: (parseInt(path.distance) / 1000).toFixed(1),
-      duration_min: Math.round(parseInt(path.duration) / 60),
-      steps
-    };
-  }
-  throw new Error('路线规划失败: ' + (data.info || '未知错误'));
-}
-
-// ============================================================
-// 事件绑定
-// ============================================================
-btnCamera.addEventListener('click', startCamera);
-
-btnStop.addEventListener('click', stopCamera);
-
-// 点击视频区域 = 拍照
-cameraVideo.addEventListener('click', captureFrame);
-
-btnUpload.addEventListener('click', () => fileInput.click());
-
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+fi.addEventListener('change',function(){
+  if(fi.files&&fi.files[0]) onImgLoaded(fi.files[0]);
 });
 
-// 粘贴支持
-document.addEventListener('paste', function(e) {
-  const items = e.clipboardData.items;
-  for (let item of items) {
-    if (item.type.startsWith('image/')) {
-      handleFile(item.getAsFile());
-      break;
-    }
+document.addEventListener('paste',function(e){
+  var it=e.clipboardData.items;
+  for(var i=0;i<it.length;i++){
+    if(it[i].type.indexOf('image/')===0){onImgLoaded(it[i].getAsFile());break;}
   }
 });
 
-// 拖拽支持
-uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor = '#1677ff'; });
-uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = '#ccc'; });
-uploadArea.addEventListener('drop', e => {
+zone.addEventListener('dragover',function(e){e.preventDefault();});
+zone.addEventListener('drop',function(e){
   e.preventDefault();
-  uploadArea.style.borderColor = '#ccc';
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  if(e.dataTransfer.files&&e.dataTransfer.files[0]) onImgLoaded(e.dataTransfer.files[0]);
 });
 
-btnRecognize.addEventListener('click', async () => {
-  if (!currentImage) return alert('请先拍照或上传图片');
-  btnRecognize.disabled = true;
-  btnRecognize.textContent = '⏳ 识别中...';
-  resultContent.innerHTML = '<div class="loading"><div class="spinner"></div>正在识别交通标志...</div>';
-  resultCard.classList.remove('hidden');
-  try {
-    const result = await recognize(currentImage);
-    showResult(result.class_id, result.confidence);
-  } catch(e) {
-    resultContent.innerHTML = `<div style="color:#e74c3c;text-align:center">❌ 识别失败: ${e.message}</div>`;
+bg.addEventListener('click',async function(){
+  if(!imgSrc){alert('请先上传一张交通标志图片');return;}
+  if(!session){alert('模型还没加载完，请稍等片刻再试');return;}
+
+  bg.disabled=true;
+  bg.textContent='⏳ 识别中...';
+  rc.classList.remove('hidden');
+  ri.innerHTML='<div class="loading"><div class="spinner"></div>正在识别交通标志...</div>';
+
+  try{
+    var r=await recognize(imgSrc);
+    var s=SG[r.cls];
+    var c=r.conf>0.7?'#2ecc71':r.conf>0.4?'#f39c12':'#e74c3c';
+    var pct=(r.conf*100).toFixed(0);
+    ri.innerHTML=
+      '<div style="text-align:center;font-size:2.5em">'+s[2]+'</div>'+
+      '<div style="text-align:center;font-size:1.3em;font-weight:bold;margin:6px 0">'+s[0]+'</div>'+
+      '<div style="text-align:center;font-size:0.8em;color:#888;margin-bottom:6px">Class '+r.cls+'</div>'+
+      '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+c+'"></div></div>'+
+      '<div style="text-align:center;font-size:0.85em">置信度 <b>'+(r.conf*100).toFixed(1)+'%</b></div>'+
+      '<div class="nav-tip"><div class="lb">🗺 导航建议</div><div style="margin-top:4px">'+s[1]+'</div></div>';
+  }catch(e){
+    ri.innerHTML='<div style="color:#e74c3c;text-align:center;padding:10px">❌ 识别失败: '+e.message+'</div>';
   }
-  btnRecognize.disabled = false;
-  btnRecognize.textContent = '🔍 识别路标';
+  bg.disabled=false;
+  bg.textContent='🔍 开始识别';
 });
 
-btnRoute.addEventListener('click', async () => {
-  const origin = originInput.value.trim();
-  const dest = destInput.value.trim();
-  if (!origin || !dest) return alert('请输入起点和目的地');
+// ========== Amap ==========
+bn.addEventListener('click',async function(){
+  var from=fi2.value.trim(), to=ti.value.trim();
+  if(!from||!to){alert('请输入起点和目的地');return;}
 
-  routeResult.innerHTML = '<div class="loading"><div class="spinner"></div>正在规划路线...</div>';
-  try {
-    const route = await planRoute(origin, dest);
-    const amapUrl = `https://uri.amap.com/navigation?from=${route.origin.lng},${route.origin.lat},${encodeURIComponent(origin)}&to=${route.dest.lng},${route.dest.lat},${encodeURIComponent(dest)}&mode=car&policy=0`;
-    const stepsHtml = route.steps.slice(0, 8).map((s,i) => `${i+1}. ${s}`).join('<br>');
-    routeResult.innerHTML = `
-      <div class="route">
-        <div class="summary">🚗 从「${origin}」到「${dest}」<br>
-        距离: <b>${route.distance_km} km</b> | 预计: <b>${route.duration_min} 分钟</b></div>
-        <div class="steps">${stepsHtml}</div>
-        ${route.steps.length > 8 ? `<div style="color:#999;margin-top:5px">...共 ${route.steps.length} 步</div>` : ''}
-        <a href="${amapUrl}" target="_blank" style="display:inline-block;margin-top:12px;background:#1677ff;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:bold">📱 在手机高德地图中打开导航</a>
-      </div>
-    `;
-  } catch(e) {
-    routeResult.innerHTML = `<div style="color:#e74c3c;padding:10px">❌ ${e.message}</div>`;
+  nr.innerHTML='<div class="loading"><div class="spinner"></div>正在规划路线...</div>';
+  try{
+    // geocode
+    var g1=await(await fetch('https://restapi.amap.com/v3/geocode/geo?key='+AK+'&address='+encodeURIComponent(from))).json();
+    var g2=await(await fetch('https://restapi.amap.com/v3/geocode/geo?key='+AK+'&address='+encodeURIComponent(to))).json();
+    if(g1.status!=='1'||parseInt(g1.count)===0) throw new Error('找不到起点');
+    if(g2.status!=='1'||parseInt(g2.count)===0) throw new Error('找不到目的地');
+
+    var l1=g1.geocodes[0].location.split(',');
+    var l2=g2.geocodes[0].location.split(',');
+    var o={lng:parseFloat(l1[0]),lat:parseFloat(l1[1])};
+    var d={lng:parseFloat(l2[0]),lat:parseFloat(l2[1])};
+
+    // route
+    var data=await(await fetch('https://restapi.amap.com/v3/direction/driving?key='+AK+'&origin='+o.lng+','+o.lat+'&destination='+d.lng+','+d.lat+'&extensions=base')).json();
+    if(data.status==='1'&&data.route.paths.length){
+      var p=data.route.paths[0];
+      var dist=(parseInt(p.distance)/1000).toFixed(1);
+      var dur=Math.round(parseInt(p.duration)/60);
+      var steps=p.steps.map(function(s,i){return (i+1)+'. '+s.instruction;});
+
+      nr.innerHTML=
+        '<div class="route-box">'+
+        '<div style="font-weight:bold;color:#1677ff">🚗 '+from+' → '+to+'</div>'+
+        '<div style="margin:4px 0">距离 <b>'+dist+' km</b> | 预计 <b>'+dur+' 分钟</b></div>'+
+        '<div style="font-size:0.85em;color:#555;line-height:1.8;margin-top:6px">'+steps.slice(0,8).join('<br>')+'</div>'+
+        (steps.length>8?'<div style="color:#999;font-size:0.8em">...共'+steps.length+'步</div>':'')+
+        '</div>';
+    }else{
+      nr.innerHTML='<div style="color:#e74c3c;padding:8px">路线规划失败: '+(data.info||'未知')+'</div>';
+    }
+  }catch(e){
+    nr.innerHTML='<div style="color:#e74c3c;padding:8px">❌ '+e.message+'</div>';
   }
 });
 
-// ============================================================
-// 启动
-// ============================================================
+// Start
 loadModel();
+
+})();
 </script>
 </body>
 </html>
