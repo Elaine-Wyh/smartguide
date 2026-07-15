@@ -291,7 +291,7 @@ bn.addEventListener('click',async function(){
       var dur=Math.round(parseInt(p.duration)/60);
       var steps=p.steps.map(function(s,i){return (i+1)+'. '+s.instruction;});
 
-      var amapUrl='https://uri.amap.com/navigation?from='+o.lng+','+o.lat+','+encodeURIComponent(from)+'&to='+d.lng+','+d.lat+','+encodeURIComponent(to)+'&mode=car&callnative=1';
+      var amapUrl='https://uri.amap.com/navigation?from='+o.lng+','+o.lat+','+encodeURIComponent(from)+'&to='+d.lng+','+d.lat+','+encodeURIComponent(to)+'&mode=car';
       var stepsHtml=steps.map(function(s){return '<div>'+s+'</div>';}).join('');
       nr.innerHTML=
         '<div class="route-box">'+
